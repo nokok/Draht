@@ -105,6 +105,33 @@ public class Injector {
                         }
                     }
                 }
+                Method[] methods = obj.getClass().getDeclaredMethods();
+                List<Method> injectingMethods = Arrays.stream(methods).filter(m -> m.isAnnotationPresent(Inject.class)).collect(Collectors.toList());
+                for (Method method : injectingMethods) {
+                    Annotation[] annotations = method.getAnnotations();
+                    if (annotations.length == 1 && annotations[0].annotationType().equals(Inject.class)) {
+                        method.setAccessible(true);
+                        Type[] methodGenericParameterTypes = method.getGenericParameterTypes();
+                        Object[] methodArgs = new Object[methodGenericParameterTypes.length];
+                        for (int i = 0; i < methodGenericParameterTypes.length; i++) {
+                            Type methodGenericParameterType = methodGenericParameterTypes[i];
+                            if (methodGenericParameterType instanceof ParameterizedType) {
+                                ParameterizedType p = (ParameterizedType) methodGenericParameterType;
+                                if (p.getRawType().equals(Provider.class)) {
+                                    Provider<?> provider = () -> getInstance(methodGenericParameterType);
+                                    methodArgs[i] = provider;
+                                }
+                            } else {
+                                methodArgs[i] = getInstance(methodGenericParameterType);
+                            }
+                        }
+                        if (methodGenericParameterTypes.length == 0) {
+                            method.invoke(obj);
+                        } else {
+                            method.invoke(obj, methodArgs);
+                        }
+                    }
+                }
                 return (T) obj;
             } else {
                 throw new UnsupportedOperationException("Unsupported KeyType : " + keyType.getClass().getName());
