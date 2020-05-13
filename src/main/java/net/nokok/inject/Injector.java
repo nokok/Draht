@@ -76,59 +76,40 @@ public class Injector {
             throw new IllegalArgumentException("Cannot cast Class<?>");
         }
         Class<?> keyClass = (Class<?>) keyType;
-        Constructor<?> ctor;
-        if (ctorParameterLength == 0) {
-            ctor = keyClass.getDeclaredConstructor();
-        } else {
-            ctor = keyClass.getDeclaredConstructor(ctorParameterTypes);
-        }
+        Constructor<?> ctor = keyClass.getDeclaredConstructor(ctorParameterTypes);
         ctor.setAccessible(true);
-        if (ctorParameterLength == 0) {
-            return ctor.newInstance();
-        } else {
-            return ctor.newInstance(ctorArgs);
-        }
+        return ctor.newInstance(ctorArgs);
     }
 
     private Object resolveInjectableMembers(Object obj) throws ReflectiveOperationException {
         Field[] fields = obj.getClass().getDeclaredFields();
         List<Field> injectingField = Arrays.stream(fields).filter(f -> f.isAnnotationPresent(Inject.class)).collect(Collectors.toList());
         for (Field field : injectingField) {
-            Annotation[] annotations = field.getAnnotations();
-            if (annotations.length == 1 && annotations[0].annotationType().equals(Inject.class)) {
-                field.setAccessible(true);
-                Type fieldType = field.getGenericType();
-                if (isProvider(fieldType)) {
-                    Provider<?> provider = () -> getProviderInstance(fieldType);
-                    field.set(obj, provider);
-                } else {
-                    field.set(obj, getInstance(fieldType));
-                }
+            field.setAccessible(true);
+            Type fieldType = field.getGenericType();
+            if (isProvider(fieldType)) {
+                Provider<?> provider = () -> getProviderInstance(fieldType);
+                field.set(obj, provider);
+            } else {
+                field.set(obj, getInstance(fieldType));
             }
         }
         Method[] methods = obj.getClass().getDeclaredMethods();
         List<Method> injectingMethods = Arrays.stream(methods).filter(m -> m.isAnnotationPresent(Inject.class)).collect(Collectors.toList());
         for (Method method : injectingMethods) {
-            Annotation[] annotations = method.getAnnotations();
-            if (annotations.length == 1 && annotations[0].annotationType().equals(Inject.class)) {
-                method.setAccessible(true);
-                Type[] methodGenericParameterTypes = method.getGenericParameterTypes();
-                Object[] methodArgs = new Object[methodGenericParameterTypes.length];
-                for (int i = 0; i < methodGenericParameterTypes.length; i++) {
-                    Type methodGenericParameterType = methodGenericParameterTypes[i];
-                    if (isProvider(methodGenericParameterType)) {
-                        Provider<?> provider = () -> getProviderInstance(methodGenericParameterType);
-                        methodArgs[i] = provider;
-                    } else {
-                        methodArgs[i] = getInstance(methodGenericParameterType);
-                    }
-                }
-                if (methodGenericParameterTypes.length == 0) {
-                    method.invoke(obj);
+            method.setAccessible(true);
+            Type[] methodGenericParameterTypes = method.getGenericParameterTypes();
+            Object[] methodArgs = new Object[methodGenericParameterTypes.length];
+            for (int i = 0; i < methodGenericParameterTypes.length; i++) {
+                Type methodGenericParameterType = methodGenericParameterTypes[i];
+                if (isProvider(methodGenericParameterType)) {
+                    Provider<?> provider = () -> getProviderInstance(methodGenericParameterType);
+                    methodArgs[i] = provider;
                 } else {
-                    method.invoke(obj, methodArgs);
+                    methodArgs[i] = getInstance(methodGenericParameterType);
                 }
             }
+            method.invoke(obj, methodArgs);
         }
         return obj;
     }
