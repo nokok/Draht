@@ -24,19 +24,15 @@ public class Injector {
 
     @SuppressWarnings("unchecked")
     public <T> T getInstance(Type type) {
-        System.out.println("1. getInstance : " + type);
         Key<T> key = Key.of(type);
-        System.out.println("2. Key: " + key);
         if (type instanceof ParameterizedType) {
             ParameterizedType p = (ParameterizedType) type;
             if (p.getRawType().equals(Provider.class)) {
                 Type actualTypeArgument = p.getActualTypeArguments()[0];
-                System.out.println("Provider return");
                 return getInstance(actualTypeArgument);
             }
         }
         if (!mappings.containsKey(key)) {
-            System.out.println("DEBUG: マッピングが見つかりません " + type.getTypeName());
             return null;
         }
         KeyDependencies<?> mapping = mappings.get(key);
@@ -47,7 +43,6 @@ public class Injector {
         Object[] args = new Object[parameterLength];
         for (int i = 0; i < dependencyList.size(); i++) {
             Type dep = dependencyList.get(i);
-            System.out.println("Resolving... : " + dep.getTypeName());
             if (dep instanceof ParameterizedType) {
                 ParameterizedType p = (ParameterizedType) dep;
                 if (p.getRawType().equals(Provider.class)) {
