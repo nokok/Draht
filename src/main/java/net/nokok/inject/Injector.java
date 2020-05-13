@@ -22,118 +22,144 @@ public class Injector {
         this.mappings = Arrays.stream(bindings).map(b -> Map.entry(b.getKey(), b.getKeyDependencies())).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     }
 
+    public <T> T getInstance(Class<T> clazz) {
+        return getInstance((Type) clazz);
+    }
+
     @SuppressWarnings("unchecked")
     public <T> T getInstance(Type type) {
         Key<T> key = Key.of(type);
-        if (type instanceof ParameterizedType) {
-            ParameterizedType p = (ParameterizedType) type;
-            if (p.getRawType().equals(Provider.class)) {
-                Type actualTypeArgument = p.getActualTypeArguments()[0];
-                return getInstance(actualTypeArgument);
-            }
+        if (isProvider(type)) {
+            return getProviderInstance(type);
         }
         if (!mappings.containsKey(key)) {
-            return null;
-        }
-        KeyDependencies<?> mapping = mappings.get(key);
-        List<Key<?>> dependencies = mapping.getDependencies();
-        Type keyType = mapping.getKey().getType();
-        int parameterLength = dependencies.size();
-        List<Type> dependencyList = dependencies.stream().map(Key::getRealType).collect(Collectors.toList());
-        Object[] args = new Object[parameterLength];
-        for (int i = 0; i < dependencyList.size(); i++) {
-            Type dep = dependencyList.get(i);
-            if (dep instanceof ParameterizedType) {
-                ParameterizedType p = (ParameterizedType) dep;
-                if (p.getRawType().equals(Provider.class)) {
-                    Type providerType = p.getActualTypeArguments()[0];
-                    Provider<?> provider = () -> getInstance(providerType);
-                    args[i] = provider;
-                }
-            } else {
-                args[i] = getInstance(dep);
-            }
+            throw new IllegalArgumentException("Mapping not found");
         }
         try {
-            Constructor<?> constructor;
-            if (keyType instanceof Class) {
-                List<Type> parameterList = dependencies.stream().map(Key::getType).collect(Collectors.toList());
-                if (!parameterList.stream().allMatch(p -> p instanceof Class)) {
-                    throw new UnsupportedOperationException("Cannot cast Class<?> :" + parameterList);
-                }
-                Class<?>[] parameterTypes = parameterList.stream().map(c -> (Class<?>) c).collect(Collectors.toList()).toArray(new Class[parameterLength]);
-                Class<T> implClass = (Class<T>) keyType;
-                boolean singleton = implClass.isAnnotationPresent(Singleton.class);
-                if (parameterLength == 0) {
-                    constructor = implClass.getDeclaredConstructor();
-                } else {
-                    constructor = implClass.getDeclaredConstructor(parameterTypes);
-                }
-                constructor.setAccessible(true);
-                Object obj;
-                if (singleton && instances.containsKey(Key.of(implClass))) {
-                    return (T) instances.get(Key.of(implClass));
-                }
-                if (parameterLength == 0) {
-                    obj = constructor.newInstance();
-                } else {
-                    obj = constructor.newInstance(args);
-                }
-                if (singleton) {
-                    instances.put(Key.of(implClass), obj);
-                }
-                Field[] fields = obj.getClass().getDeclaredFields();
-                List<Field> injectingField = Arrays.stream(fields).filter(f -> f.isAnnotationPresent(Inject.class)).collect(Collectors.toList());
-                for (Field field : injectingField) {
-                    Annotation[] annotations = field.getAnnotations();
-                    if (annotations.length == 1 && annotations[0].annotationType().equals(Inject.class)) {
-                        field.setAccessible(true);
-                        Type fieldType = field.getGenericType();
-                        if (fieldType instanceof ParameterizedType) {
-                            ParameterizedType p = (ParameterizedType) fieldType;
-                            if (p.getRawType().equals(Provider.class)) {
-                                Provider<?> provider = () -> getInstance(fieldType);
-                                field.set(obj, provider);
-                            }
-                        } else {
-                            field.set(obj, getInstance(fieldType));
-                        }
-                    }
-                }
-                Method[] methods = obj.getClass().getDeclaredMethods();
-                List<Method> injectingMethods = Arrays.stream(methods).filter(m -> m.isAnnotationPresent(Inject.class)).collect(Collectors.toList());
-                for (Method method : injectingMethods) {
-                    Annotation[] annotations = method.getAnnotations();
-                    if (annotations.length == 1 && annotations[0].annotationType().equals(Inject.class)) {
-                        method.setAccessible(true);
-                        Type[] methodGenericParameterTypes = method.getGenericParameterTypes();
-                        Object[] methodArgs = new Object[methodGenericParameterTypes.length];
-                        for (int i = 0; i < methodGenericParameterTypes.length; i++) {
-                            Type methodGenericParameterType = methodGenericParameterTypes[i];
-                            if (methodGenericParameterType instanceof ParameterizedType) {
-                                ParameterizedType p = (ParameterizedType) methodGenericParameterType;
-                                if (p.getRawType().equals(Provider.class)) {
-                                    Provider<?> provider = () -> getInstance(methodGenericParameterType);
-                                    methodArgs[i] = provider;
-                                }
-                            } else {
-                                methodArgs[i] = getInstance(methodGenericParameterType);
-                            }
-                        }
-                        if (methodGenericParameterTypes.length == 0) {
-                            method.invoke(obj);
-                        } else {
-                            method.invoke(obj, methodArgs);
-                        }
-                    }
-                }
-                return (T) obj;
-            } else {
-                throw new UnsupportedOperationException("Unsupported KeyType : " + keyType.getClass().getName());
+            boolean hasSingletonAnnotation = hasSingletonAnnotation(type);
+            if (hasSingletonAnnotation && isAlreadyCreatedInstance(type)) {
+                return (T) instances.get(Key.of(type));
             }
+            Object injected = newInstanceWithConstructorInjection(type);
+            Object finalInstance = resolveInjectableMembers(injected);
+            if (hasSingletonAnnotation) {
+                instances.put(Key.of(type), finalInstance);
+            }
+            return (T) finalInstance;
         } catch (ReflectiveOperationException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    private Object newInstanceWithConstructorInjection(Type type) throws ReflectiveOperationException {
+        Key<?> key = Key.of(type);
+        KeyDependencies<?> mapping = mappings.get(key);
+        List<Key<?>> dependencies = mapping.getDependencies();
+        int ctorParameterLength = dependencies.size();
+        List<Type> dependencyList = dependencies.stream().map(Key::getRealType).collect(Collectors.toList());
+
+        Object[] ctorArgs = new Object[ctorParameterLength];
+        for (int i = 0; i < dependencyList.size(); i++) {
+            Type dep = dependencyList.get(i);
+            if (isProvider(dep)) {
+                Provider<?> p = () -> getProviderInstance(dep);
+                ctorArgs[i] = p;
+            } else {
+                ctorArgs[i] = getInstance(dep);
+            }
+        }
+
+        Class<?>[] ctorParameterTypes = dependencies.stream().map(Key::getType).map(c -> (Class<?>) c).collect(Collectors.toList()).toArray(new Class[ctorParameterLength]);
+
+        Type keyType = mapping.getKey().getType();
+        if (!(keyType instanceof Class<?>)) {
+            throw new IllegalArgumentException("Cannot cast Class<?>");
+        }
+        Class<?> keyClass = (Class<?>) keyType;
+        Constructor<?> ctor;
+        if (ctorParameterLength == 0) {
+            ctor = keyClass.getDeclaredConstructor();
+        } else {
+            ctor = keyClass.getDeclaredConstructor(ctorParameterTypes);
+        }
+        ctor.setAccessible(true);
+        if (ctorParameterLength == 0) {
+            return ctor.newInstance();
+        } else {
+            return ctor.newInstance(ctorArgs);
+        }
+    }
+
+    private Object resolveInjectableMembers(Object obj) throws ReflectiveOperationException {
+        Field[] fields = obj.getClass().getDeclaredFields();
+        List<Field> injectingField = Arrays.stream(fields).filter(f -> f.isAnnotationPresent(Inject.class)).collect(Collectors.toList());
+        for (Field field : injectingField) {
+            Annotation[] annotations = field.getAnnotations();
+            if (annotations.length == 1 && annotations[0].annotationType().equals(Inject.class)) {
+                field.setAccessible(true);
+                Type fieldType = field.getGenericType();
+                if (isProvider(fieldType)) {
+                    Provider<?> provider = () -> getProviderInstance(fieldType);
+                    field.set(obj, provider);
+                } else {
+                    field.set(obj, getInstance(fieldType));
+                }
+            }
+        }
+        Method[] methods = obj.getClass().getDeclaredMethods();
+        List<Method> injectingMethods = Arrays.stream(methods).filter(m -> m.isAnnotationPresent(Inject.class)).collect(Collectors.toList());
+        for (Method method : injectingMethods) {
+            Annotation[] annotations = method.getAnnotations();
+            if (annotations.length == 1 && annotations[0].annotationType().equals(Inject.class)) {
+                method.setAccessible(true);
+                Type[] methodGenericParameterTypes = method.getGenericParameterTypes();
+                Object[] methodArgs = new Object[methodGenericParameterTypes.length];
+                for (int i = 0; i < methodGenericParameterTypes.length; i++) {
+                    Type methodGenericParameterType = methodGenericParameterTypes[i];
+                    if (isProvider(methodGenericParameterType)) {
+                        Provider<?> provider = () -> getProviderInstance(methodGenericParameterType);
+                        methodArgs[i] = provider;
+                    } else {
+                        methodArgs[i] = getInstance(methodGenericParameterType);
+                    }
+                }
+                if (methodGenericParameterTypes.length == 0) {
+                    method.invoke(obj);
+                } else {
+                    method.invoke(obj, methodArgs);
+                }
+            }
+        }
+        return obj;
+    }
+
+    private boolean isProvider(Type type) {
+        if (type instanceof ParameterizedType) {
+            ParameterizedType p = (ParameterizedType) type;
+            return p.getRawType().equals(Provider.class);
+        }
+        return false;
+    }
+
+    private boolean hasSingletonAnnotation(Type type) {
+        if (type instanceof Class<?>) {
+            Class<?> clazz = (Class<?>) type;
+            return clazz.isAnnotationPresent(Singleton.class);
+        }
+        return false;
+    }
+
+    private boolean isAlreadyCreatedInstance(Type type) {
+        return instances.containsKey(Key.of(type));
+    }
+
+    private <T> T getProviderInstance(Type t) {
+        ParameterizedType p = ((ParameterizedType) t);
+        Type rawType = p.getRawType();
+        if (!rawType.equals(Provider.class)) {
+            throw new IllegalArgumentException("Cannot cast Provider<?> : " + p.getTypeName());
+        }
+        return getInstance(p.getActualTypeArguments()[0]);
     }
 
     public static class syntax {

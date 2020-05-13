@@ -5,7 +5,6 @@ import net.nokok.inject.internal.ParameterizedTypeImpl;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
-import java.util.List;
 import java.util.Objects;
 
 public class BindingBuilder {
