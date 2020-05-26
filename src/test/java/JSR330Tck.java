@@ -1,27 +1,39 @@
 import junit.framework.Test;
 import junit.framework.TestCase;
-import net.nokok.inject.Injector;
+import net.nokok.draft.DraftModule;
+import net.nokok.draft.Injector;
 import org.atinject.tck.Tck;
 import org.atinject.tck.auto.*;
 import org.atinject.tck.auto.accessories.Cupholder;
 import org.atinject.tck.auto.accessories.SpareTire;
 
-import static net.nokok.inject.Injector.syntax.bind;
-import static net.nokok.inject.Injector.syntax.register;
+import javax.inject.Named;
 
 public class JSR330Tck extends TestCase {
+    @DraftModule
+    interface MyModule {
+
+        Convertible getConvertible(Car car);
+
+        Seat getSeat();
+
+        DriversSeat getDriversSeat(@Drivers Seat seat);
+
+        Tire bindTire();
+
+        SpareTire bindSpareTire();
+
+        SpareTire bindTire(@Named("spare") Tire tire);
+
+        V8Engine bindEngine(Engine engine);
+
+        Cupholder bindCupHolder();
+
+        FuelTank bindFuelTank();
+    }
+
     public static Test suite() {
-        Car car = new Injector(
-                bind(Car.class).to(Convertible.class),
-                register(Seat.class),
-                bind(Seat.class).qualifiedWith(Drivers.class).to(DriversSeat.class),
-                register(Tire.class),
-                register(SpareTire.class),
-                bind(Engine.class).to(V8Engine.class),
-                bind(Tire.class).qualifiedWith("spare").to(SpareTire.class),
-                register(Cupholder.class),
-                register(FuelTank.class)
-        ).getInstance(Car.class);
-        return Tck.testsFor(car, false, false);
+        Car car = Injector.fromModules(MyModule.class).getInstance(Car.class);
+        return Tck.testsFor(car, true, true);
     }
 }

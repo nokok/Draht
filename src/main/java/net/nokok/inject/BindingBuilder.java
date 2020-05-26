@@ -5,6 +5,7 @@ import net.nokok.inject.internal.ParameterizedTypeImpl;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
+import java.util.List;
 import java.util.Objects;
 
 public class BindingBuilder {
@@ -22,8 +23,9 @@ public class BindingBuilder {
             return new Binding<>(key, keyDependencies);
         }
 
-        public GenericTypeKeyBuilder<T> withGenericType(Type... types) {
-            return new GenericTypeKeyBuilder<>(keyClass, types);
+        public <Impl extends T> Binding<T, Impl> toInstnace(Impl i) {
+            Key<T> key = Key.of(keyClass);
+            return null;
         }
 
         public AnnotatedKeyBuilder<T> qualifiedWith(Class<? extends Annotation> annotation) {
@@ -46,7 +48,7 @@ public class BindingBuilder {
         }
 
         public <Impl extends Type> Binding<Type, Impl> to(Class<Impl> clazz) {
-            Key<Type> key = Key.of(keyClass, annotation);
+            Key<Type> key = Key.of(keyClass, List.of(this.annotation));
             KeyDependencies<Impl> keyDependencies = KeyDependencies.find(clazz);
             return new Binding<>(key, keyDependencies);
         }

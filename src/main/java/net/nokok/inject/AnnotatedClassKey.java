@@ -1,17 +1,20 @@
 package net.nokok.inject;
 
-import net.nokok.inject.Key;
-
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
+import java.util.List;
 import java.util.Objects;
 
 public class AnnotatedClassKey<T> extends Key<T> {
-    private final Class<? extends Annotation> annotation;
+    private final List<Class<? extends Annotation>> annotations;
 
-    protected AnnotatedClassKey(Type keyClass, Class<? extends Annotation> annotation) {
+    protected AnnotatedClassKey(Type keyClass, List<Class<? extends Annotation>> annotations) {
         super(keyClass);
-        this.annotation = annotation;
+        this.annotations = annotations;
+    }
+
+    public List<Class<? extends Annotation>> getAnnotations() {
+        return annotations;
     }
 
     @Override
@@ -20,11 +23,11 @@ public class AnnotatedClassKey<T> extends Key<T> {
         if (o == null || getClass() != o.getClass()) return false;
         if (!super.equals(o)) return false;
         AnnotatedClassKey<?> that = (AnnotatedClassKey<?>) o;
-        return Objects.equals(annotation, that.annotation);
+        return Objects.equals(annotations, that.annotations);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(super.hashCode(), annotation);
+        return Objects.hash(super.hashCode(), annotations);
     }
 }

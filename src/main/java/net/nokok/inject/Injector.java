@@ -2,9 +2,7 @@ package net.nokok.inject;
 
 import net.nokok.inject.internal.KeyDependencies;
 
-import javax.inject.Inject;
-import javax.inject.Provider;
-import javax.inject.Singleton;
+import javax.inject.*;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.*;
 import java.util.Arrays;
@@ -27,10 +25,14 @@ public class Injector {
     }
 
     @SuppressWarnings("unchecked")
-    public <T> T getInstance(Type type) {
-        Key<T> key = Key.of(type);
+    public <T> T getInstance(Type type, String name) {
+        System.out.println("Resolving... : " + type.getTypeName());
+        Key<T> key = Key.of(type, name);
         if (isProvider(type)) {
             return getProviderInstance(type);
+        }
+        if (hasNamedAnnotation(type)) {
+            System.out.println("Named : " + getQualifiedName(type));
         }
         if (!mappings.containsKey(key)) {
             throw new IllegalArgumentException("Mapping not found");
@@ -41,7 +43,7 @@ public class Injector {
                 return (T) instances.get(Key.of(type));
             }
             Object injected = newInstanceWithConstructorInjection(type);
-            Object finalInstance = resolveInjectableMembers(injected);
+            Object finalInstance = resolveInjectableMembers(injected.getClass(), injected);
             if (hasSingletonAnnotation) {
                 instances.put(Key.of(type), finalInstance);
             }
@@ -51,12 +53,16 @@ public class Injector {
         }
     }
 
+    public <T> T getInstance(Type type) {
+        return getInstance(type, "");
+    }
+
     private Object newInstanceWithConstructorInjection(Type type) throws ReflectiveOperationException {
         Key<?> key = Key.of(type);
         KeyDependencies<?> mapping = mappings.get(key);
         List<Key<?>> dependencies = mapping.getDependencies();
         int ctorParameterLength = dependencies.size();
-        List<Type> dependencyList = dependencies.stream().map(Key::getRealType).collect(Collectors.toList());
+        List<Type> dependencyList = dependencies.stream().map(Key::getType).collect(Collectors.toList());
 
         Object[] ctorArgs = new Object[ctorParameterLength];
         for (int i = 0; i < dependencyList.size(); i++) {
@@ -69,9 +75,9 @@ public class Injector {
             }
         }
 
-        Class<?>[] ctorParameterTypes = dependencies.stream().map(Key::getType).map(c -> (Class<?>) c).collect(Collectors.toList()).toArray(new Class[ctorParameterLength]);
+        Class<?>[] ctorParameterTypes = dependencies.stream().map(Key::getRawType).map(c -> (Class<?>) c).collect(Collectors.toList()).toArray(new Class[ctorParameterLength]);
 
-        Type keyType = mapping.getKey().getType();
+        Type keyType = mapping.getKey().getRawType();
         if (!(keyType instanceof Class<?>)) {
             throw new IllegalArgumentException("Cannot cast Class<?>");
         }
@@ -81,12 +87,26 @@ public class Injector {
         return ctor.newInstance(ctorArgs);
     }
 
-    private Object resolveInjectableMembers(Object obj) throws ReflectiveOperationException {
-        Field[] fields = obj.getClass().getDeclaredFields();
+    private Object resolveInjectableMembers(Class<?> baseClass, Object obj) throws ReflectiveOperationException {
+        if (baseClass.equals(Object.class)) {
+            return obj;
+        }
+        if (baseClass.getSuperclass() != null) {
+            resolveInjectableMembers(baseClass.getSuperclass(), obj);
+        }
+        Field[] fields = baseClass.getDeclaredFields();
         List<Field> injectingField = Arrays.stream(fields).filter(f -> f.isAnnotationPresent(Inject.class)).collect(Collectors.toList());
         for (Field field : injectingField) {
             field.setAccessible(true);
             Type fieldType = field.getGenericType();
+            List<Annotation> qualifiers = Arrays.stream(field.getAnnotations()).filter(a -> a.annotationType().isAssignableFrom(Qualifier.class)).collect(Collectors.toList());
+
+
+            Annotation[] annotations = field.getAnnotations();
+            for (Annotation annotation : annotations) {
+                annotation.annotationType().isAssignableFrom(Qualifier.class);
+            }
+
             if (isProvider(fieldType)) {
                 Provider<?> provider = () -> getProviderInstance(fieldType);
                 field.set(obj, provider);
@@ -94,7 +114,7 @@ public class Injector {
                 field.set(obj, getInstance(fieldType));
             }
         }
-        Method[] methods = obj.getClass().getDeclaredMethods();
+        Method[] methods = baseClass.getDeclaredMethods();
         List<Method> injectingMethods = Arrays.stream(methods).filter(m -> m.isAnnotationPresent(Inject.class)).collect(Collectors.toList());
         for (Method method : injectingMethods) {
             method.setAccessible(true);
@@ -128,6 +148,23 @@ public class Injector {
             return clazz.isAnnotationPresent(Singleton.class);
         }
         return false;
+    }
+
+    private boolean hasNamedAnnotation(Type type) {
+        if (type instanceof Class<?>) {
+            Class<?> clazz = (Class<?>) type;
+            return clazz.isAnnotationPresent(Named.class);
+        }
+        return false;
+    }
+
+    private String getQualifiedName(Type type) {
+        if (type instanceof Class<?>) {
+            Class<?> clazz = (Class<?>) type;
+            Named annotation = clazz.getAnnotation(Named.class);
+            return annotation.value();
+        }
+        throw new IllegalArgumentException("Annotation Not found");
     }
 
     private boolean isAlreadyCreatedInstance(Type type) {

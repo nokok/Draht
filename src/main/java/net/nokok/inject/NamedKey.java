@@ -3,12 +3,19 @@ package net.nokok.inject;
 import java.lang.reflect.Type;
 import java.util.Objects;
 
-public class StringClassKey<T> extends Key<T> {
+public class NamedKey<T> extends Key<T> {
     private final String qualifiedName;
 
-    protected StringClassKey(Type keyClass, String qualifiedName) {
+    protected NamedKey(Type keyClass, String qualifiedName) {
         super(keyClass);
         this.qualifiedName = qualifiedName;
+        if (this.qualifiedName.isEmpty()) {
+            throw new IllegalArgumentException("Empty qualifiedName");
+        }
+    }
+
+    public String getQualifiedName() {
+        return qualifiedName;
     }
 
     @Override
@@ -16,7 +23,7 @@ public class StringClassKey<T> extends Key<T> {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         if (!super.equals(o)) return false;
-        StringClassKey<?> that = (StringClassKey<?>) o;
+        NamedKey<?> that = (NamedKey<?>) o;
         return Objects.equals(qualifiedName, that.qualifiedName);
     }
 
