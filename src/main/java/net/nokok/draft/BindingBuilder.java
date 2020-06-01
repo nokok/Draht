@@ -1,11 +1,10 @@
 package net.nokok.draft;
 
-import net.nokok.draft.internal.InterfaceProxyHandler;
-
 import java.lang.annotation.Annotation;
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.*;
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class BindingBuilder {
     private final Class<?> module;
@@ -17,7 +16,14 @@ public class BindingBuilder {
         this.module = Objects.requireNonNull(module);
     }
 
-    public List<Binding> getBindings() {
+    private List<Binding> getBindings(Class<?> module) {
+        if (!module.isAnnotationPresent(DraftModule.class)) {
+            return Collections.emptyList();
+        }
+        if (!Modifier.isPublic(module.getModifiers())) {
+            System.out.println(String.format("Warnings: Cannot Access Module %s", module));
+            return new ArrayList<>();
+        }
         List<Binding> bindings = new ArrayList<>(module.getDeclaredMethods().length);
         for (Method method : module.getDeclaredMethods()) {
             Type[] methodGenericParameterTypes = method.getGenericParameterTypes();
@@ -55,5 +61,9 @@ public class BindingBuilder {
             }
         }
         return bindings;
+    }
+
+    public List<Binding> getBindings() {
+        return new ArrayList<>();
     }
 }

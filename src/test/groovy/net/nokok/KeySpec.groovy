@@ -2,6 +2,8 @@ package net.nokok
 
 
 import net.nokok.inject.Key
+import net.nokok.testdata.Qualified
+import net.nokok.testdata.TestData
 import spock.lang.Specification
 
 import javax.inject.Named

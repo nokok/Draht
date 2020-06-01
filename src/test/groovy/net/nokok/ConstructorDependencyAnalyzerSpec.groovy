@@ -3,6 +3,10 @@ package net.nokok
 import net.nokok.draft.Dependencies
 import net.nokok.draft.Key
 import net.nokok.draft.analyzer.ConstructorDependencyAnalyzer
+import net.nokok.testdata.Dependency
+import net.nokok.testdata.OneConstructor
+import net.nokok.testdata.OneConstructorWithDependency
+import net.nokok.testdata.OneConstructorWithInject
 import spock.lang.Specification
 
 class ConstructorDependencyAnalyzerSpec extends Specification {

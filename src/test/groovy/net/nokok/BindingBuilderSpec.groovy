@@ -4,6 +4,12 @@ import net.nokok.draft.BindingBuilder
 import net.nokok.draft.AtNamed
 import net.nokok.draft.DraftProvider
 import net.nokok.draft.SimpleBinding
+import net.nokok.testdata.inheritance.Local
+import net.nokok.testdata.EmptyModule
+import net.nokok.testdata.Service
+import net.nokok.testdata.ServiceImpl
+import net.nokok.testdata.TestModule
+import net.nokok.testdata.TestModuleDefaultMethod
 import spock.lang.Specification
 
 class BindingBuilderSpec extends Specification {
@@ -22,7 +28,7 @@ class BindingBuilderSpec extends Specification {
         expect:
         !bindings.isEmpty()
         bindings.size() == 1
-        bindings.get(0) == new SimpleBinding([], A, B)
+        bindings.get(0) == new SimpleBinding([], Service, ServiceImpl)
     }
 
     def "testTestModuleDefaultMethod"() {
@@ -33,5 +39,15 @@ class BindingBuilderSpec extends Specification {
         !bindings.isEmpty()
         bindings.size() == 1
         bindings.get(0) == net.nokok.draft.Binding.withProvider([AtNamed.from("title")], String, String, new DraftProvider<>("AppTitle"))
+    }
+
+    def "test"() {
+        def bindingBuilder = new BindingBuilder(Local)
+        def bindings = bindingBuilder.getBindings()
+
+        expect:
+        !bindings.isEmpty()
+        bindings.size() == 1
+        bindings.get(0) == net.nokok.draft.Binding.withProvider([AtNamed.from("DatabaseUrl")], String, String, new DraftProvider<>("localhost"))
     }
 }

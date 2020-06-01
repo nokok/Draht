@@ -9,30 +9,29 @@ import java.util.*;
 
 public class Injector {
 
-    private final Map<Key, Provider<?>> bindings = new HashMap<>();
+    private final Map<Key, Provider<?>> bindings;
 
-    public static Injector fromModules(Class<?>... moduleArray) {
-        List<Class<?>> modules = new ArrayList<>(Arrays.asList(moduleArray));
+    private Injector(Map<Key, Provider<?>> bindings) {
+        this.bindings = bindings;
+    }
 
+    public static Injector fromModule(Class<?> module) {
         Map<Key, Dependencies> dependencyMappings = new HashMap<>();
         Map<Key, DependencyAnalyzer> analyzerCache = new HashMap<>();
-        for (Class<?> module : modules) {
-            BindingBuilder bindingBuilder = new BindingBuilder(module);
-            List<Binding> bindings = bindingBuilder.getBindings();
-
-            for (Binding binding : bindings) {
-                Key key = binding.getKey();
-                Type bindTo = binding.getBindTo();
-                if (dependencyMappings.containsKey(key)) {
-                    throw new IllegalStateException("Duplicate Entry :" + binding);
-                }
-                analyzerCache.putIfAbsent(key, DependencyAnalyzer.newAnalyzer(bindTo));
-                DependencyAnalyzer analyzer = analyzerCache.get(key);
-                dependencyMappings.put(key, analyzer.runAnalyze());
+        BindingBuilder bindingBuilder = new BindingBuilder(module);
+        List<Binding> bindings = bindingBuilder.getBindings();
+        for (Binding binding : bindings) {
+            Key key = binding.getKey();
+            Type bindTo = binding.getBindTo();
+            if (dependencyMappings.containsKey(key)) {
+                throw new IllegalStateException("Duplicate Entry :" + binding);
             }
+            analyzerCache.computeIfAbsent(key, i -> DependencyAnalyzer.newAnalyzer(bindTo));
+            DependencyAnalyzer analyzer = analyzerCache.get(key);
+            dependencyMappings.put(key, analyzer.runAnalyze());
         }
         System.out.println(dependencyMappings);
-        return new Injector();
+        return new Injector(Collections.emptyMap());
     }
 
     @SuppressWarnings("unchecked")
@@ -46,6 +45,9 @@ public class Injector {
 
     private Object getInstance(List<? extends Annotation> annotations, Type type) {
         Key key = Key.of(annotations, type);
+        if (!bindings.containsKey(key)) {
+            throw new IllegalArgumentException("Cannot find mapping : " + key);
+        }
         return bindings.get(key).get();
     }
 }

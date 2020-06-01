@@ -1,4 +1,4 @@
-package net.nokok;
+package net.nokok.testdata;
 
 class Dependency {
 

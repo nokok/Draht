@@ -33,7 +33,7 @@ public class JSR330Tck extends TestCase {
     }
 
     public static Test suite() {
-        Car car = Injector.fromModules(MyModule.class).getInstance(Car.class);
+        Car car = Injector.fromModule(MyModule.class).getInstance(Car.class);
         return Tck.testsFor(car, true, true);
     }
 }

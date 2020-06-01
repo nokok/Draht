@@ -3,7 +3,6 @@ package net.nokok.draft;
 import javax.inject.Named;
 import java.io.Serializable;
 import java.lang.annotation.Annotation;
-import java.util.Objects;
 
 class NamedImpl implements Named, Serializable {
 
@@ -35,5 +34,10 @@ class NamedImpl implements Named, Serializable {
     @Override
     public Class<? extends Annotation> annotationType() {
         return Named.class;
+    }
+
+    @Override
+    public String toString() {
+        return String.format("@Named(\"%s\")", this.name);
     }
 }
