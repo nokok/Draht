@@ -35,11 +35,16 @@ public class AnnotatedTypeKey extends Key {
 
     @Override
     public String toString() {
-        return "Key: " + getName();
+        return String.format("Key(%s)", getName());
     }
 
     @Override
     public String getName() {
-        return annotations.stream().map(Annotation::toString).collect(Collectors.joining(",")) + " " + type.getTypeName();
+        String annotations = this.annotations.stream().map(Annotation::toString).collect(Collectors.joining(","));
+        if (annotations.isEmpty()) {
+            return type.getTypeName();
+        } else {
+            return String.format("%s:%s", annotations, type.getTypeName());
+        }
     }
 }

@@ -1,13 +1,12 @@
 package net.nokok
 
-import net.nokok.draft.DraftModule
+
 import net.nokok.draft.Injector
+import net.nokok.testdata.JSRModule
 import org.atinject.tck.auto.*
 import org.atinject.tck.auto.accessories.Cupholder
 import org.atinject.tck.auto.accessories.SpareTire
 import spock.lang.Specification
-
-import javax.inject.Named
 
 class MyJSRLikeSpec extends Specification {
 
@@ -17,29 +16,6 @@ class MyJSRLikeSpec extends Specification {
     private SpareTire spareTire
     private Tire plainTire
     private Engine engine
-
-    @DraftModule
-    interface JSRModule {
-        Convertible bind(Car car);
-
-        Seat seat();
-
-        DriversSeat bind(@Drivers Seat seat);
-
-        Tire tire();
-
-        SpareTire spareTire();
-
-        V8Engine bind(Engine engine);
-
-        Tire bind(@Named("spare") Tire tire);
-
-        Cupholder cupholder();
-
-        FuelTank fuelTank();
-
-    }
-
 
     def setup() {
         def car = Injector.fromModule(JSRModule).getInstance(Car.class)

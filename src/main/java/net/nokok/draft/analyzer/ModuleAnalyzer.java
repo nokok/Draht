@@ -6,8 +6,8 @@ import net.nokok.draft.ModuleConfigurationException;
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.Messager;
 import javax.annotation.processing.RoundEnvironment;
-import javax.lang.model.SourceVersion;
 import javax.lang.model.element.*;
+import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
@@ -15,6 +15,8 @@ import java.util.List;
 import java.util.Set;
 
 public class ModuleAnalyzer extends AbstractProcessor {
+
+    private final BindingValidator validator = new BindingValidator();
 
     @Override
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
@@ -35,7 +37,7 @@ public class ModuleAnalyzer extends AbstractProcessor {
                         continue;
                     }
                     try {
-                        e.accept(new MethodVisitor(), null);
+                        e.accept(validator, null);
                     } catch (ModuleConfigurationException ex) {
                         messager.printMessage(Diagnostic.Kind.ERROR, ex.getMessage(), e);
                         successful = false;
@@ -51,7 +53,7 @@ public class ModuleAnalyzer extends AbstractProcessor {
         return Set.of(DraftModule.class.getName());
     }
 
-    class MethodVisitor implements ElementVisitor<Object, Object> {
+    class BindingValidator implements ElementVisitor<Object, Object> {
 
         @Override
         public Object visit(Element e, Object o) {
@@ -77,16 +79,24 @@ public class ModuleAnalyzer extends AbstractProcessor {
         public Object visitExecutable(ExecutableElement e, Object o) {
             TypeMirror returnType = e.getReturnType();
             List<? extends VariableElement> parameters = e.getParameters();
+            if (returnType.getKind().equals(TypeKind.VOID)) {
+                throw new ModuleConfigurationException("Void type binding are not supported");
+            }
             if (parameters.size() >= 2) {
-                throw new ModuleConfigurationException("Too many arguments");
+                throw new ModuleConfigurationException("Too many arguments: " + e);
             }
             if (parameters.isEmpty()) {
-
+                return null;
             } else {
-                TypeMirror parameterTypeMirror = parameters.get(0).asType();
+                VariableElement parameter = parameters.get(0);
+                TypeMirror parameterTypeMirror = parameter.asType();
                 Types typeUtils = processingEnv.getTypeUtils();
-                if (!typeUtils.isSubtype(parameterTypeMirror, returnType)) {
+
+                if (!typeUtils.isSubtype(returnType, parameterTypeMirror)) {
                     throw new ModuleConfigurationException(String.format("Incompatible types: %s vs %s", returnType, parameterTypeMirror));
+                }
+                if (e.getAnnotationMirrors().size() > 0 && parameter.getAnnotationMirrors().size() > 0) {
+                    throw new ModuleConfigurationException(String.format("Duplicate qualifiers: %s", e.getAnnotationMirrors()));
                 }
             }
             return null;

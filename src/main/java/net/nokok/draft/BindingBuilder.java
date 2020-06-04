@@ -4,7 +4,6 @@ import java.lang.annotation.Annotation;
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.*;
 import java.util.*;
-import java.util.stream.Collectors;
 
 public class BindingBuilder {
     private final Class<?> module;
@@ -29,14 +28,14 @@ public class BindingBuilder {
             Type[] methodGenericParameterTypes = method.getGenericParameterTypes();
             Type bindTo = method.getGenericReturnType();
             Type bindFrom;
-            List<Annotation> bindFromAnnotations;
+            List<Annotation> qualifier;
             int parameterLength = methodGenericParameterTypes.length;
             if (parameterLength == 0) {
                 bindFrom = bindTo;
-                bindFromAnnotations = Collections.emptyList();
+                qualifier = Arrays.asList(method.getAnnotations());
             } else {
                 bindFrom = methodGenericParameterTypes[0];
-                bindFromAnnotations = Arrays.asList(method.getParameterAnnotations()[0]);
+                qualifier = Arrays.asList(method.getParameterAnnotations()[0]);
             }
             if (method.isDefault()) {
                 try {
@@ -51,19 +50,21 @@ public class BindingBuilder {
                                 .invokeWithArguments(new Object[parameterLength]);
                     });
                     Object result = method.invoke(proxy, new Object[parameterLength]);
-                    bindings.add(Binding.withProvider(bindFromAnnotations, bindFrom, bindTo, new DraftProvider<>(result)));
+                    bindings.add(Binding.withProvider(qualifier, bindFrom, bindTo, new DraftProvider<>(result)));
                 } catch (Throwable e) {
                     //invokeWithArguments throws Throwable
                     throw new RuntimeException(e);
                 }
             } else {
-                bindings.add(new SimpleBinding(bindFromAnnotations, bindFrom, bindTo));
+                bindings.add(new SimpleBinding(qualifier, bindFrom, bindTo));
             }
         }
         return bindings;
     }
 
     public List<Binding> getBindings() {
-        return new ArrayList<>();
+        List<Binding> bindings = new ArrayList<>();
+        bindings.addAll(getBindings(this.module));
+        return bindings;
     }
 }

@@ -4,11 +4,11 @@ import javax.inject.Named;
 import java.io.Serializable;
 import java.lang.annotation.Annotation;
 
-class NamedImpl implements Named, Serializable {
+class AtNamedImpl implements Named, Serializable {
 
     private final String name;
 
-    public NamedImpl(String name) {
+    public AtNamedImpl(String name) {
         this.name = name;
     }
 

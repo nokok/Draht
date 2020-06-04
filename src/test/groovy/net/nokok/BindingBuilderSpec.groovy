@@ -4,6 +4,7 @@ import net.nokok.draft.BindingBuilder
 import net.nokok.draft.AtNamed
 import net.nokok.draft.DraftProvider
 import net.nokok.draft.SimpleBinding
+import net.nokok.testdata.OneConstructor
 import net.nokok.testdata.inheritance.Local
 import net.nokok.testdata.EmptyModule
 import net.nokok.testdata.Service
@@ -13,6 +14,21 @@ import net.nokok.testdata.TestModuleDefaultMethod
 import spock.lang.Specification
 
 class BindingBuilderSpec extends Specification {
+
+    def "testInvalidModule"() {
+        when:
+        new BindingBuilder(module)
+
+        then:
+        def ex = thrown(IllegalArgumentException)
+        ex.message == "DraftModule must be interface"
+
+        where:
+        module << [
+                String,
+                OneConstructor
+        ]
+    }
 
     def "testEmptyModule"() {
         def emptyBinding = new BindingBuilder(EmptyModule)
@@ -31,7 +47,7 @@ class BindingBuilderSpec extends Specification {
         bindings.get(0) == new SimpleBinding([], Service, ServiceImpl)
     }
 
-    def "testTestModuleDefaultMethod"() {
+    def "testTestModuleDefaultMethodWithQualifier"() {
         def bindingBuilder = new BindingBuilder(TestModuleDefaultMethod)
         def bindings = bindingBuilder.getBindings()
 
@@ -41,7 +57,7 @@ class BindingBuilderSpec extends Specification {
         bindings.get(0) == net.nokok.draft.Binding.withProvider([AtNamed.from("title")], String, String, new DraftProvider<>("AppTitle"))
     }
 
-    def "test"() {
+    def "testDefaultMethodWithQualifierAndOverride"() {
         def bindingBuilder = new BindingBuilder(Local)
         def bindings = bindingBuilder.getBindings()
 

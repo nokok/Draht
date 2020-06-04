@@ -4,6 +4,6 @@ import javax.inject.Named;
 
 public interface AtNamed {
     public static Named from(String name) {
-        return new NamedImpl(name);
+        return new AtNamedImpl(name);
     }
 }

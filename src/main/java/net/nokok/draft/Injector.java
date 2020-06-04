@@ -46,7 +46,7 @@ public class Injector {
     private Object getInstance(List<? extends Annotation> annotations, Type type) {
         Key key = Key.of(annotations, type);
         if (!bindings.containsKey(key)) {
-            throw new IllegalArgumentException("Cannot find mapping : " + key);
+            throw new ModuleConfigurationException("Cannot find mapping " + key);
         }
         return bindings.get(key).get();
     }

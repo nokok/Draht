@@ -11,7 +11,7 @@ import static com.google.common.truth.Truth.assert_
 import static com.google.testing.compile.JavaSourceSubjectFactory.javaSource
 
 class ModuleAnalyzerSpec extends Specification {
-    def "positive1"() {
+    def "testValidModule1"() {
         def moduleAnalyzer = new ModuleAnalyzer()
 
         expect:
@@ -51,6 +51,30 @@ class ModuleAnalyzerSpec extends Specification {
         assert_().about(javaSource())
                 .that(java)
                 .processedWith(moduleAnalyzer)
-                .failsToCompile().withErrorContaining("Incompatible binding types").in(java).onLine(13)
+                .failsToCompile().withErrorContaining("Incompatible types").in(java).onLine(13)
+    }
+
+    def "testDuplicateQualifier"() {
+        def moduleAnalyzer = new ModuleAnalyzer()
+        def java = JavaFileObjects.forResource(Paths.get("negative", "DuplicateQualifier.java").toString())
+
+        expect:
+        assert_().about(javaSource())
+                .that(java)
+                .processedWith(moduleAnalyzer)
+                .failsToCompile().withErrorContaining("Duplicate qualifiers").in(java).onLine(10)
+
+    }
+
+    def "testVoidBinding"() {
+        def moduleAnalyzer = new ModuleAnalyzer()
+        def java = JavaFileObjects.forResource(Paths.get("negative", "VoidBinding.java").toString())
+
+        expect:
+        assert_().about(javaSource())
+                .that(java)
+                .processedWith(moduleAnalyzer)
+                .failsToCompile().withErrorContaining("Void type binding are not supported").in(java).onLine(5)
+
     }
 }
