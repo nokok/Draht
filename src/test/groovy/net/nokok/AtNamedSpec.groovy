@@ -2,12 +2,12 @@ package net.nokok
 
 import net.nokok.draft.AtNamed
 import net.nokok.draft.BindingBuilder
-import net.nokok.draft.DraftModule
+import net.nokok.draft.Module
 import spock.lang.Specification
 
 import javax.inject.Named
 
-@DraftModule
+@Module
 interface TestModule1 {
 
     @Named("foobar")

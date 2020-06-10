@@ -1,6 +1,6 @@
 package net.nokok
 
-import net.nokok.draft.ParameterizedType
+import net.nokok.draft.ParameterizedTypeImpl
 import spock.lang.Specification
 
 import java.lang.reflect.Type
@@ -15,10 +15,10 @@ class A {
     }
 }
 
-class ParameterizedTypeSpec extends Specification {
+class ParameterizedTypeImplSpec extends Specification {
     def "testSimpleClass"() {
         when:
-        new ParameterizedType(String, [] as Type[])
+        new ParameterizedTypeImpl(String, [] as Type[])
 
         then:
         thrown(IllegalArgumentException)
@@ -26,7 +26,7 @@ class ParameterizedTypeSpec extends Specification {
 
     def "testTypeParameterCount"() {
         when:
-        def p = new ParameterizedType(List, [String] as Type[])
+        def p = new ParameterizedTypeImpl(List, [String] as Type[])
 
         then:
         notThrown(IllegalArgumentException)
@@ -39,7 +39,7 @@ class ParameterizedTypeSpec extends Specification {
 
     def "testTypeParameterCountMismatch"() {
         when:
-        new ParameterizedType(Map, [String, String, String] as Type[])
+        new ParameterizedTypeImpl(Map, [String, String, String] as Type[])
 
         then:
         thrown(IllegalArgumentException)
@@ -47,7 +47,7 @@ class ParameterizedTypeSpec extends Specification {
 
     def "testNestedClass"() {
         when:
-        def p = new ParameterizedType(A.Inner, [String] as Type[])
+        def p = new ParameterizedTypeImpl(A.Inner, [String] as Type[])
 
         then:
         notThrown(IllegalArgumentException)
@@ -60,7 +60,7 @@ class ParameterizedTypeSpec extends Specification {
 
     def "testStaticNestedClass"() {
         when:
-        def p = new ParameterizedType(A.StaticInner, [String] as Type[])
+        def p = new ParameterizedTypeImpl(A.StaticInner, [String] as Type[])
 
         then:
         notThrown(IllegalArgumentException)

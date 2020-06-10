@@ -21,7 +21,7 @@ class BindingBuilderSpec extends Specification {
 
         then:
         def ex = thrown(IllegalArgumentException)
-        ex.message == "DraftModule must be interface"
+        ex.message == "Module must be interface"
 
         where:
         module << [

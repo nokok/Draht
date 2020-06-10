@@ -1,8 +1,8 @@
-import net.nokok.draft.DraftModule;
+import net.nokok.draft.Module;
 import net.nokok.testdata.Service;
 import net.nokok.testdata.ServiceImpl;
 
-@DraftModule
+@Module
 interface M {
     ServiceImpl bindService(Service s1, Service s2);
 }

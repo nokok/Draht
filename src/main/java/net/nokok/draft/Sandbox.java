@@ -1,5 +1,5 @@
 package net.nokok.draft;
 
-@DraftModule
+@Module
 public interface Sandbox {
 }

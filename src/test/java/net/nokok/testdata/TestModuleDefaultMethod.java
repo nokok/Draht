@@ -1,10 +1,10 @@
 package net.nokok.testdata;
 
-import net.nokok.draft.DraftModule;
+import net.nokok.draft.Module;
 
 import javax.inject.Named;
 
-@DraftModule
+@Module
 public interface TestModuleDefaultMethod {
 
     default String registerTitle(@Named("title") String t) {

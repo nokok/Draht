@@ -1,10 +1,10 @@
 package net.nokok.testdata.inheritance;
 
-import net.nokok.draft.DraftModule;
+import net.nokok.draft.Module;
 
 import javax.inject.Named;
 
-@DraftModule
+@Module
 public interface Local extends Production {
 
     @Named("DatabaseUrl")

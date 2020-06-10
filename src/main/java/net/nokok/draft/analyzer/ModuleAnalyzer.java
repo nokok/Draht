@@ -1,6 +1,6 @@
 package net.nokok.draft.analyzer;
 
-import net.nokok.draft.DraftModule;
+import net.nokok.draft.Module;
 import net.nokok.draft.ModuleConfigurationException;
 
 import javax.annotation.processing.AbstractProcessor;
@@ -50,7 +50,7 @@ public class ModuleAnalyzer extends AbstractProcessor {
 
     @Override
     public Set<String> getSupportedAnnotationTypes() {
-        return Set.of(DraftModule.class.getName());
+        return Set.of(Module.class.getName());
     }
 
     class BindingValidator implements ElementVisitor<Object, Object> {

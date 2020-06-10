@@ -1,6 +1,6 @@
-import net.nokok.draft.DraftModule;
+import net.nokok.draft.Module;
 
-@DraftModule
+@Module
 interface VoidBinding {
     void bind();
 }

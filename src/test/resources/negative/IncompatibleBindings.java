@@ -1,4 +1,4 @@
-import net.nokok.draft.DraftModule;
+import net.nokok.draft.Module;
 
 interface S {
 
@@ -8,7 +8,7 @@ class I {
 
 }
 
-@DraftModule
+@Module
 interface M {
     I bind(S s);
 }

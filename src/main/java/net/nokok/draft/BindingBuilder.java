@@ -4,24 +4,26 @@ import java.lang.annotation.Annotation;
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.*;
 import java.util.*;
+import java.util.logging.Logger;
 
 public class BindingBuilder {
+
+    private static final Logger logger = Logger.getLogger(BindingBuilder.class.getName());
     private final Class<?> module;
 
     public BindingBuilder(Class<?> module) {
         if (!module.isInterface()) {
-            throw new IllegalArgumentException("DraftModule must be interface");
+            throw new IllegalArgumentException("Module must be interface");
         }
         this.module = Objects.requireNonNull(module);
     }
 
     private List<Binding> getBindings(Class<?> module) {
-        if (!module.isAnnotationPresent(DraftModule.class)) {
+        if (!module.isAnnotationPresent(Module.class)) {
             return Collections.emptyList();
         }
         if (!Modifier.isPublic(module.getModifiers())) {
-            System.out.println(String.format("Warnings: Cannot Access Module %s", module));
-            return new ArrayList<>();
+            logger.warning(String.format("Cannot access module %s", module));
         }
         List<Binding> bindings = new ArrayList<>(module.getDeclaredMethods().length);
         for (Method method : module.getDeclaredMethods()) {

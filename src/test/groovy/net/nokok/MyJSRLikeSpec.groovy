@@ -18,7 +18,7 @@ class MyJSRLikeSpec extends Specification {
     private Engine engine
 
     def setup() {
-        def car = Injector.fromModule(JSRModule).getInstance(Car.class)
+        car = Injector.fromModule(JSRModule).getInstance(Car.class)
         cupholder = car.cupholder
         spareTire = car.spareTire
         plainTire = car.fieldPlainTire
@@ -87,16 +87,4 @@ class MyJSRLikeSpec extends Specification {
         engine.overriddenTwiceWithOmissionInMiddleInjected
     }
 
-    def testQualifiersNotInheritedFromOverriddenMethod() {
-        expect:
-        engine.seatA != null
-        engine.seatB != null
-        engine.tireA != null
-        engine.tireB != null
-        engine.seatA instanceof DriversSeat
-        !engine.seatB instanceof DriversSeat
-        engine.tireA instanceof SpareTire
-        engine.tireB instanceof Tire
-        !engine.qualifiersInheritedFromOverriddenMethod
-    }
 }

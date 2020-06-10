@@ -1,8 +1,8 @@
 package net.nokok.testdata;
 
-import net.nokok.draft.DraftModule;
+import net.nokok.draft.Module;
 
-@DraftModule
+@Module
 public interface TestModule {
     ServiceImpl bind(Service a);
 }
