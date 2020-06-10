@@ -19,6 +19,15 @@ java {
     withSourcesJar()
 }
 
+compileJava {
+    doFirst {
+        options.compilerArgs = [
+                "--module-path", classpath.asPath,
+                "--add-modules", "javax.inject"
+        ]
+    }
+}
+
 dependencies {
     implementation 'javax.inject:javax.inject:1'
     testImplementation 'com.google.inject:guice:3.0'
