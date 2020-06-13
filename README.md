@@ -26,8 +26,8 @@ Gradle
 ```groovy
 dependencies {
     implementation 'javax.inject:javax.inject:1'
-    implementation 'net.nokok.draft:draft:1.0.1'
-    annotationProcessor ('net.nokok.draft:draft:1.0.1')
+    implementation 'net.nokok.draft:draft:$version'
+    annotationProcessor ('net.nokok.draft:draft:$version')
 }
 ```
 
@@ -41,7 +41,7 @@ Maven
 <dependency>
     <groupId>net.nokok.draft</groupId>
     <artifactId>draft</artifactId>
-    <version>1.0.1</version>
+    <version>$version</version>
 </dependency>
 ```
 
