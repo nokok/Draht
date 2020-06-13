@@ -7,8 +7,11 @@ import net.nokok.draft.LazyDraftProvider
 import net.nokok.draft.ParameterizedTypeImpl
 
 import net.nokok.testdata.JSRModule
+import net.nokok.testdata.Local
 import net.nokok.testdata.OneConstructorWithProvider
 import net.nokok.testdata.OneConstructorWithProviderModule
+import net.nokok.testdata.Repository
+import net.nokok.testdata.Service
 import net.nokok.testdata.ServiceImpl
 import net.nokok.testdata.TestData2
 import org.atinject.tck.auto.DriversSeat
@@ -93,6 +96,14 @@ class InjectorSpec extends Specification {
         expect:
         t2.getSeat2() != null
         t2.getSeat2() instanceof DriversSeat
+    }
+
+    def "testLocal"() {
+        def injector = Injector.fromModule(Local)
+        def repo = injector.getInstance(Repository)
+
+        expect:
+        repo.url.contains("localhost")
     }
 
 }

@@ -5,6 +5,9 @@ import net.nokok.draft.AtNamed
 import net.nokok.draft.DraftProvider
 import net.nokok.draft.SimpleBinding
 import net.nokok.testdata.OneConstructor
+import net.nokok.testdata.Production
+import net.nokok.testdata.Repository
+import net.nokok.testdata.RepositoryImpl
 import net.nokok.testdata.inheritance.Local
 import net.nokok.testdata.EmptyModule
 import net.nokok.testdata.Service
@@ -54,7 +57,7 @@ class BindingBuilderSpec extends Specification {
         expect:
         !bindings.isEmpty()
         bindings.size() == 1
-        bindings.get(0) == net.nokok.draft.Binding.withProvider([AtNamed.from("title")], String, String, new DraftProvider<>("AppTitle"))
+        bindings.get(0) == net.nokok.draft.Binding.withValue([AtNamed.from("title")], String, String, "AppTitle")
     }
 
     def "testDefaultMethodWithQualifierAndOverride"() {
@@ -64,6 +67,25 @@ class BindingBuilderSpec extends Specification {
         expect:
         !bindings.isEmpty()
         bindings.size() == 1
-        bindings.get(0) == net.nokok.draft.Binding.withProvider([AtNamed.from("DatabaseUrl")], String, String, new DraftProvider<>("localhost"))
+        bindings.get(0) == net.nokok.draft.Binding.withValue([AtNamed.from("DatabaseUrl")], String, String, "localhost")
+    }
+
+    def "testDefaultMethod"() {
+        def bindingBuilder = new BindingBuilder(Production)
+        def binding = bindingBuilder.getBindings()
+
+        expect:
+        binding.size() == 2
+        binding.any {
+            it.annotations.size() == 1
+            it.annotations[0] == AtNamed.from("DatabaseUrl")
+            it.bindFrom == String
+            it.bindTo == String
+        }
+        binding.any {
+            it.annotations.size() == 0
+            it.bindFrom == Repository
+            it.bindTo == RepositoryImpl
+        }
     }
 }
