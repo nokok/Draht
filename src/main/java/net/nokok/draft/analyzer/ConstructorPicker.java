@@ -37,6 +37,6 @@ public class ConstructorPicker {
             }
         }
 
-        throw new IllegalStateException();
+        throw new IllegalStateException(String.format("Cannot find constructor in %s", this.clazz.toString()));
     }
 }

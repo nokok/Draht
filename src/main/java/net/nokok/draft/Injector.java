@@ -3,20 +3,20 @@ package net.nokok.draft;
 import net.nokok.draft.analyzer.DependencyAnalyzer;
 import net.nokok.draft.analyzer.InjectableMethodAnalyzer;
 import net.nokok.draft.analyzer.TypeHierarchyAnalyzer;
-import net.nokok.draft.internal.TypeHierarchy;
 
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
 import java.lang.annotation.Annotation;
-import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
 import java.lang.reflect.Type;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
@@ -25,42 +25,41 @@ public class Injector {
     private final Logger logger = Logger.getLogger(Injector.class.getName());
     private final Map<Key, Dependencies> dependencies;
     private final Map<Key, Object> singletonInstances;
-    private final Map<Method, Void> injected = new HashMap<>();
 
-
-    private Injector(Map<Key, Dependencies> dependencies) {
+    private Injector(Map<Key, Dependencies> dependencies, Map<Key, Object> singletonInstances) {
         this.dependencies = Objects.requireNonNull(dependencies);
-        this.singletonInstances = new HashMap<>();
+        this.singletonInstances = Objects.requireNonNull(singletonInstances);
     }
 
     public static Injector newInstance() {
-        return new Injector(new HashMap<>());
+        return new Injector(new HashMap<>(), new HashMap<>());
     }
 
     public static Injector fromModule(Class<?> module) {
         if (!module.isAnnotationPresent(Module.class)) {
             throw new IllegalArgumentException("@Module annotation not found");
         }
-        Map<Key, Dependencies> dependenciesMap = analyzeDependencies(module);
-        return new Injector(dependenciesMap);
-    }
-
-    private static Map<Key, Dependencies> analyzeDependencies(Class<?> module) {
-        Map<Key, Dependencies> dependencyMappings = new HashMap<>();
+        Map<Key, Dependencies> dependenciesMap = new HashMap<>();
+        Map<Key, Object> singletonInstances = new HashMap<>();
         Map<Key, DependencyAnalyzer> analyzerCache = new HashMap<>();
         BindingBuilder bindingBuilder = new BindingBuilder(module);
         List<Binding> bindings = bindingBuilder.getBindings();
         for (Binding binding : bindings) {
             Key key = binding.getKey();
             Type bindTo = binding.getBindTo();
-            if (dependencyMappings.containsKey(key)) {
+            if (dependenciesMap.containsKey(key)) {
                 throw new IllegalStateException("Duplicate Entry :" + binding);
+            }
+            if (binding.hasValue()) {
+                singletonInstances.put(key, binding.getValue().orElse(null));
+                continue;
             }
             analyzerCache.computeIfAbsent(key, i -> DependencyAnalyzer.newAnalyzer(bindTo));
             DependencyAnalyzer analyzer = analyzerCache.get(key);
-            dependencyMappings.put(key, analyzer.runAnalyze());
+            dependenciesMap.put(key, analyzer.runAnalyze());
         }
-        return dependencyMappings;
+
+        return new Injector(dependenciesMap, singletonInstances);
     }
 
     @SuppressWarnings("unchecked")
@@ -76,17 +75,14 @@ public class Injector {
     @SuppressWarnings("unchecked")
     public <T> T getInstance(List<? extends Annotation> annotations, Type type) {
         Key key = Key.of(annotations, type);
-        // logger.info("Resolving... " + key);
+        logger.info("Resolving... " + key);
         if (key.isProviderTypeKey()) {
             Provider<?> providerInstance = getProviderInstance(key);
-            // logger.info(String.format("getInstance(List<Annotation>, Type) -> %s", providerInstance));
             return (T) providerInstance;
         }
         try {
             if (this.singletonInstances.containsKey(key)) {
-                // logger.info("Singleton instance found: " + key);
                 Object singleton = this.singletonInstances.get(key);
-                // logger.info(String.format("getInstance(List<Annotation>, Type) -> %s", singleton));
                 return (T) singleton;
             }
             Dependencies dependencies = getDependencies(key);
@@ -101,7 +97,6 @@ public class Injector {
             if (key.isSingletonRequired() && dependencies.getTargetConstructor().getDeclaringClass().isAnnotationPresent(Singleton.class)) {
                 this.singletonInstances.put(key, i);
             }
-//            // logger.info(String.format("getInstance(List<Annotation>, Type) -> %s", finalInstance));
             return (T) i;
         } catch (ReflectiveOperationException e) {
             throw new IllegalArgumentException(e);
@@ -150,7 +145,11 @@ public class Injector {
         for (Key dep : dependencies.getDependencyKeys()) {
             args.add(getInstance(dep));
         }
-        return targetConstructor.newInstance(args.toArray());
+        try {
+            return targetConstructor.newInstance(args.toArray());
+        } catch (IllegalArgumentException e) {
+            throw new IllegalStateException(String.format("%s with %s", targetConstructor, args), e);
+        }
     }
 
     private List<Class<?>> buildTypeHierarchy(Object obj) {
@@ -167,7 +166,6 @@ public class Injector {
             field.setAccessible(true);
             Key fieldKey = Key.of(Arrays.asList(annotations), field.getGenericType());
             Object instance = getInstance(fieldKey);
-            // logger.info(String.format("%s#%s = %s", clazz, field, instance));
             field.set(obj, instance);
         }
     }
@@ -175,7 +173,6 @@ public class Injector {
     @SuppressWarnings("unchecked")
     public <T> T getInstance(Key key) {
         Object instance = getInstance(key.getAnnotations(), key.isGenericTypeKey() ? key.getKeyAsGenericType() : key.getKeyAsRawType());
-        // logger.info(String.format("getInstance(%s) -> %s", key, instance));
         return (T) instance;
     }
 }
