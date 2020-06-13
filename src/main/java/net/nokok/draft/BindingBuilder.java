@@ -5,6 +5,7 @@ import java.lang.invoke.MethodHandles;
 import java.lang.reflect.*;
 import java.util.*;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 public class BindingBuilder {
 
@@ -52,7 +53,7 @@ public class BindingBuilder {
                                 .invokeWithArguments(new Object[parameterLength]);
                     });
                     Object result = method.invoke(proxy, new Object[parameterLength]);
-                    bindings.add(Binding.withProvider(qualifier, bindFrom, bindTo, new DraftProvider<>(result)));
+                    bindings.add(new InstanceBinding(qualifier, bindFrom, bindTo, result));
                 } catch (Throwable e) {
                     //invokeWithArguments throws Throwable
                     throw new RuntimeException(e);
@@ -66,7 +67,18 @@ public class BindingBuilder {
 
     public List<Binding> getBindings() {
         List<Binding> bindings = new ArrayList<>();
+        Optional<Class<?>> superModuleOpt = Arrays.stream(this.module.getInterfaces()).filter(c -> c.isAnnotationPresent(Module.class)).findFirst();
+
+        while (superModuleOpt.isPresent()) {
+            Class<?> superModule = superModuleOpt.get();
+            bindings.addAll(getBindings(superModule));
+            superModuleOpt = Arrays.stream(superModule.getInterfaces()).filter(c -> c.isAnnotationPresent(Module.class)).findFirst();
+        }
+
         bindings.addAll(getBindings(this.module));
-        return bindings;
+        Map<Key, Binding> bindingMap = new HashMap<>();
+        bindings.forEach(b -> bindingMap.put(b.getKey(), b));
+
+        return new ArrayList<>(bindingMap.values());
     }
 }
