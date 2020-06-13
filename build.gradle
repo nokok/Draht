@@ -6,13 +6,14 @@ plugins {
 }
 
 group 'net.nokok.draft'
-version '1.0.1'
+version '1.0.2'
 
 repositories {
     jcenter()
     mavenLocal()
     mavenCentral()
 }
+
 java {
     withJavadocJar()
     withSourcesJar()
@@ -36,6 +37,13 @@ task signFiles(type: Sign) {
 signing {
     sign configurations.archives
     sign publishing.publications
+}
+
+if(!hasProperty('nexusUsername')) {
+  ext.nexusUsername = "dummy"
+}
+if(!hasProperty('nexusPassword')) {
+  ext.nexusPassword = "dummy"
 }
 
 
@@ -75,12 +83,8 @@ publishing {
             def snapshotsRepoUrl = "https://oss.sonatype.org/content/repositories/snapshots"
             url = version.endsWith('SNAPSHOT') ? snapshotsRepoUrl : releasesRepoUrl
             credentials {
-                if(hasProperty('nexusUserName')) {
-                    username = "${nexusUsername}"
-                }
-                if(hasProperty('nexusPassword')) {
-                    password = "${nexusPassword}"
-                }
+                username = "${nexusUsername}"
+                password = "${nexusPassword}"
             }
         }
     }
