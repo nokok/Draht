@@ -103,8 +103,6 @@ interface SampleModule {
 
 ## Override bindings
 
-You can safely overwrite binding settings by using inheritance.
-
 ```java
 @Module
 interface Production {
