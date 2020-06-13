@@ -1,8 +1,8 @@
 plugins {
     id 'java-library'
     id 'groovy'
-    id 'maven'
     id 'maven-publish'
+    id 'signing'
 }
 
 group 'net.nokok.draft'
@@ -13,7 +13,6 @@ repositories {
     mavenLocal()
     mavenCentral()
 }
-
 java {
     withJavadocJar()
     withSourcesJar()
@@ -29,16 +28,55 @@ dependencies {
     testImplementation 'com.google.testing.compile:compile-testing:0.18'
 }
 
+task signFiles(type: Sign) {
+    sign project.file('build/publications/maven/pom-default.xml')
+    outputs.upToDateWhen { false }
+}
+
+signing {
+    sign configurations.archives
+    sign publishing.publications
+}
+
+
 publishing {
     publications {
-        mavenJava(MavenPublication) {
-            groupId = 'net.nokok.draft'
+        maven(MavenPublication) {
+            groupId = project.group
             artifactId = 'draft'
-            version = '1.0.1'
+            version = project.version
             from components.java
             pom {
                 name = 'Draft'
                 description = 'Implementation of JSR-330'
+                url = 'https://github.com/nokok/Draft'
+                developers {
+                    developer {
+                        id = 'nokok'
+                        name = 'Noriyuki Kazusawa'
+                        email = 'nokok.kz@gmail.com'
+                    }
+                }
+                licenses {
+                    license {
+                        name = 'MIT License'
+                        url = 'https://github.com/nokok/Draft/blob/master/LICENSE'
+                    }
+                }
+                scm {
+                    url = 'git@github.com:nokok/Draft.git'
+                }
+            }
+        }
+    }
+    repositories {
+        maven {
+            def releasesRepoUrl = "https://oss.sonatype.org/service/local/staging/deploy/maven2"
+            def snapshotsRepoUrl = "https://oss.sonatype.org/content/repositories/snapshots"
+            url = version.endsWith('SNAPSHOT') ? snapshotsRepoUrl : releasesRepoUrl
+            credentials {
+                username = "${nexusUsername}"
+                password = "${nexusPassword}"
             }
         }
     }
