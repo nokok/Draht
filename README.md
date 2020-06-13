@@ -26,7 +26,7 @@ Gradle
 ```groovy
 dependencies {
     implementation 'javax.inject:javax.inject:1'
-    compileOnly 'net.nokok.draft:draft:1.0.1'
+    implementation 'net.nokok.draft:draft:1.0.1'
     annotationProcessor ('net.nokok.draft:draft:1.0.1')
 }
 ```
