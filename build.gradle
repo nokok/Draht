@@ -5,8 +5,8 @@ plugins {
     id 'maven-publish'
 }
 
-group 'net.nokok'
-version '1.0'
+group 'net.nokok.draft'
+version '1.0.0'
 
 repositories {
     jcenter()
@@ -17,15 +17,6 @@ repositories {
 java {
     withJavadocJar()
     withSourcesJar()
-}
-
-compileJava {
-    doFirst {
-        options.compilerArgs = [
-                "--module-path", classpath.asPath,
-                "--add-modules", "javax.inject"
-        ]
-    }
 }
 
 dependencies {
