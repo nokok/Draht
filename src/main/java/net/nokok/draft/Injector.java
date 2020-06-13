@@ -1,17 +1,24 @@
 package net.nokok.draft;
 
 import net.nokok.draft.analyzer.DependencyAnalyzer;
+import net.nokok.draft.analyzer.InjectableMethodAnalyzer;
+import net.nokok.draft.analyzer.TypeHierarchyAnalyzer;
+import net.nokok.draft.internal.TypeHierarchy;
 
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
 import java.lang.annotation.Annotation;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.lang.reflect.Type;
 import java.util.*;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 public class Injector {
 
@@ -84,14 +91,34 @@ public class Injector {
             }
             Dependencies dependencies = getDependencies(key);
             Object i = newInstanceWithConstructorInjection(dependencies);
-            Object finalInstance = resolveInjectableMembers(i);
+            List<Class<?>> typeHierarchy = buildTypeHierarchy(i);
+            InjectableMethodAnalyzer injectableMethodAnalyzer = InjectableMethodAnalyzer.newAnalyzer(i.getClass());
+            List<InjectableMethod> injectableMethods = injectableMethodAnalyzer.runAnalyze();
+            for (Class<?> clazz : typeHierarchy) {
+                injectFields(clazz, i);
+                injectMethods(i, injectableMethods.stream().filter(m -> m.getDeclaredClass().equals(clazz)).collect(Collectors.toList()));
+            }
             if (key.isSingletonRequired() && dependencies.getTargetConstructor().getDeclaringClass().isAnnotationPresent(Singleton.class)) {
-                this.singletonInstances.put(key, finalInstance);
+                this.singletonInstances.put(key, i);
             }
 //            // logger.info(String.format("getInstance(List<Annotation>, Type) -> %s", finalInstance));
-            return (T) finalInstance;
+            return (T) i;
         } catch (ReflectiveOperationException e) {
             throw new IllegalArgumentException(e);
+        }
+    }
+
+    private void injectMethods(Object i, List<InjectableMethod> injectableMethods) throws ReflectiveOperationException {
+        for (InjectableMethod method : injectableMethods) {
+            Object[] objects = method.getParameterTypeKeys().stream().map(key -> {
+                if (key.isProviderTypeKey()) {
+                    // To avoid type inference error
+                    return (Object) getProviderInstance(key);
+                } else {
+                    return (Object) getInstance(key);
+                }
+            }).toArray();
+            method.invoke(i, objects);
         }
     }
 
@@ -101,7 +128,6 @@ public class Injector {
         }
         Type type = key.getKeyAsProviderType().orElseThrow(IllegalArgumentException::new);
         Provider<?> instance = new LazyDraftProvider(this, Key.of(key.getAnnotations(), type));
-//        // logger.info("Provider instantiate : " + instance);
         return instance;
     }
 
@@ -125,6 +151,25 @@ public class Injector {
             args.add(getInstance(dep));
         }
         return targetConstructor.newInstance(args.toArray());
+    }
+
+    private List<Class<?>> buildTypeHierarchy(Object obj) {
+        return TypeHierarchyAnalyzer.newAnalyzer(obj.getClass()).runAnalyze().topDownOrder();
+    }
+
+    private void injectFields(Class<?> clazz, Object obj) throws ReflectiveOperationException {
+        Field[] fields = clazz.getDeclaredFields();
+        for (Field field : fields) {
+            if (field.getDeclaredAnnotation(Inject.class) == null) {
+                continue;
+            }
+            Annotation[] annotations = field.getAnnotations();
+            field.setAccessible(true);
+            Key fieldKey = Key.of(Arrays.asList(annotations), field.getGenericType());
+            Object instance = getInstance(fieldKey);
+            // logger.info(String.format("%s#%s = %s", clazz, field, instance));
+            field.set(obj, instance);
+        }
     }
 
     private Object resolveInjectableMembers(Object obj) throws ReflectiveOperationException {
@@ -153,29 +198,46 @@ public class Injector {
 
             Method[] methods = clazz.getDeclaredMethods();
             for (Method method : methods) {
-                if (shouldSkipInject(clazz, typeHierarchy, method, obj)) {
+                if (shouldSkipInject(clazz, method, obj)) {
                     continue;
                 }
                 // logger.info(String.format("TargetMethod: %s#%s", clazz.getSimpleName(), method.getName()));
                 method.setAccessible(true);
                 Annotation[][] parameterAnnotations = method.getParameterAnnotations();
                 Type[] methodGenericParameterTypes = method.getGenericParameterTypes();
-                Object[] methodArgs = new Object[methodGenericParameterTypes.length];
+                List<Object> methodArgs = new ArrayList<>(methodGenericParameterTypes.length + 1);
                 for (int i = 0; i < methodGenericParameterTypes.length; i++) {
                     Type methodGenericParameterType = methodGenericParameterTypes[i];
                     Key methodKey = Key.of(Arrays.asList(parameterAnnotations[i]), methodGenericParameterType);
 
                     if (methodKey.isProviderTypeKey()) {
-                        methodArgs[i] = getProviderInstance(methodKey);
+                        methodArgs.add(getProviderInstance(methodKey));
                     } else {
-                        methodArgs[i] = getInstance(methodKey);
+                        methodArgs.add(getInstance(methodKey));
                     }
                 }
-                // logger.info(String.format("%s#%s invoke with %s", method.getDeclaringClass().getSimpleName(), method.getName(), Arrays.toString(methodArgs)));
-                if (methodGenericParameterTypes.length == 0) {
-                    method.invoke(obj);
+
+                if (obj.getClass().equals(clazz)) {
+                    logger.info(String.format("%s#%s invoke with %s using Reflection API", method.getDeclaringClass().getSimpleName(), method.getName(), methodArgs));
+                    if (methodGenericParameterTypes.length == 0) {
+                        method.invoke(clazz.cast(obj));
+                    } else {
+                        method.invoke(clazz.cast(obj), methodArgs.toArray());
+                    }
                 } else {
-                    method.invoke(obj, methodArgs);
+                    logger.info(String.format("%s#%s invoke with %s using MethodHandles", method.getDeclaringClass().getSimpleName(), method.getName(), methodArgs));
+
+                    Constructor<MethodHandles.Lookup> methodHandleCtor = MethodHandles.Lookup.class.getDeclaredConstructor(Class.class);
+                    methodHandleCtor.setAccessible(true);
+                    MethodHandle methodHandle = methodHandleCtor.newInstance(clazz).in(clazz).unreflectSpecial(method, clazz).bindTo(obj);
+                    logger.info("MethodHandle: " + methodHandle);
+                    try {
+                        logger.info("Args: " + methodArgs);
+                        methodHandle.invokeWithArguments(methodArgs);
+                    } catch (Throwable e) {
+                        // MethodHandle#invoke throws Throwable
+                        throw new IllegalStateException(e);
+                    }
                 }
             }
         }
@@ -183,21 +245,82 @@ public class Injector {
         return obj;
     }
 
-    private boolean shouldSkipInject(Class<?> targetClass, List<Class<?>> typeHierarchy, Method method, Object instance) {
+    private boolean shouldSkipInject(Class<?> targetClass, Method method, Object instance) {
         if (method.getDeclaredAnnotation(Inject.class) == null) {
-            logger.info(String.format("%s:%s#%s -> %s", instance, targetClass.getSimpleName(), method.getName(), true));
+            logger.info(String.format("%s:%s#%s -> %s: No @Inject annotation declared in the method", instance, targetClass.getSimpleName(), method.getName(), true));
             return true;
         }
         if (method.isBridge()) {
-            logger.info(String.format("%s:%s#%s -> %s", instance, targetClass.getSimpleName(), method.getName(), true));
+            logger.info(String.format("%s:%s#%s -> %s: Bridge Method", instance, targetClass.getSimpleName(), method.getName(), true));
             return true;
         }
         if (method.isSynthetic()) {
-            logger.info(String.format("%s:%s#%s -> %s", instance, targetClass.getSimpleName(), method.getName(), true));
+            logger.info(String.format("%s:%s#%s -> %s: Synthetic Method", instance, targetClass.getSimpleName(), method.getName(), true));
             return true;
         }
-
+        if (!targetClass.equals(instance.getClass()) && isOverridingSuperClassMethod(targetClass, method, instance)) {
+            logger.info(String.format("%s:%s#%s -> %s: Overridden by children class", instance, targetClass.getSimpleName(), method.getName(), true));
+            return true;
+        }
+        int modifiers = method.getModifiers();
+        boolean isPackagePrivate = !Modifier.isPrivate(modifiers) && !Modifier.isProtected(modifiers) && !Modifier.isPublic(modifiers);
+        logger.info(method + " isPackagePrivate? " + isPackagePrivate);
+        if (Modifier.isStatic(modifiers)) {
+            logger.info(String.format("%s:%s#%s -> %s: Static Method", instance, targetClass.getSimpleName(), method.getName(), true));
+            return true;
+        }
+        Class<?> objectClass = instance.getClass();
+        if (!targetClass.equals(objectClass)) {
+            boolean isOverridable = Modifier.isPublic(modifiers) || Modifier.isProtected(modifiers);
+            boolean hasMethodInChildren;
+            try {
+                instance.getClass().getDeclaredMethod(method.getName(), method.getParameterTypes());
+                hasMethodInChildren = true;
+            } catch (NoSuchMethodException e) {
+                hasMethodInChildren = false;
+            }
+            if (isOverridable && hasMethodInChildren) {
+                logger.info(String.format("%s:%s#%s -> %s: DeclaringMethod Mismatch", instance, targetClass.getSimpleName(), method.getName(), true));
+                return true;
+            }
+            logger.info("Package Check target:" + targetClass.getPackageName() + " vs object:" + instance.getClass().getPackageName());
+            if (isPackagePrivate && !targetClass.getPackageName().equals(instance.getClass().getPackageName()) && hasMethodInChildren) {
+                logger.info(String.format("%s:%s#%s -> %s: Package Mismatch", instance, targetClass.getSimpleName(), method.getName(), true));
+                return true;
+            }
+        }
         logger.info(String.format("%s:%s#%s -> %s", instance, targetClass.getSimpleName(), method.getName(), false));
+        return false;
+    }
+
+    private boolean isOverridingSuperClassMethod(Class<?> targetClass, Method method, Object childrenClassInstance) {
+        Class<?> maybeSubClass = childrenClassInstance.getClass();
+        String methodName = method.getName();
+        Class<?>[] params = method.getParameterTypes();
+        if (targetClass.equals(maybeSubClass) || targetClass.isAssignableFrom(maybeSubClass)) {
+            return false;
+        }
+        boolean superTypeHasMethod;
+        boolean superTypeMethodIsPrivate = false;
+        boolean superTypeMethodIsProtected = false;
+        boolean superTypeMethodIsPublic = false;
+        boolean superTypeMethodIsPackagePrivate = false;
+        try {
+            Method superTypeMethod = targetClass.getDeclaredMethod(methodName, params);
+            superTypeHasMethod = true;
+            int modifiers = superTypeMethod.getModifiers();
+            superTypeMethodIsPrivate = Modifier.isPrivate(modifiers);
+            superTypeMethodIsProtected = Modifier.isProtected(modifiers);
+            superTypeMethodIsPublic = Modifier.isPublic(modifiers);
+            superTypeMethodIsPackagePrivate = !superTypeMethodIsPublic && !superTypeMethodIsProtected && !superTypeMethodIsPrivate;
+        } catch (NoSuchMethodException e) {
+            superTypeHasMethod = false;
+        }
+
+        if (!superTypeHasMethod) {
+            return false;
+        }
+
         return false;
     }
 

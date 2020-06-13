@@ -7,5 +7,5 @@ import javax.inject.Named;
 @Module
 interface DuplicateQualifier {
     @Named("A")
-    ServiceImpl s(@Named("B") Service s);
+    ServiceImpl s(@Named("AnotherB") Service s);
 }
