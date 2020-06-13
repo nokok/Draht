@@ -71,9 +71,7 @@ public class Main {
 }
 ```
 
-# Documentation
-
-## Simple Module Configuration
+# Documentation(WIP)
 
 e.g.
 ```java
@@ -103,7 +101,7 @@ interface SampleModule {
 }
 ```
 
-## Advanced
+## Override bindings
 
 You can safely overwrite binding settings by using inheritance.
 
