@@ -52,7 +52,7 @@ Maven
 import net.nokok.draft.Module;
 
 @Module
-interface SampleModule {
+public interface SampleModule {
     ServiceImpl bind(Service s);
 }
 ```
@@ -86,7 +86,7 @@ Configure
 
 ```java
 @Module
-interface SampleModule {
+public interface SampleModule {
     // bind Service to ServiceImpl
     ServiceImpl bindService(Service s);
 
@@ -105,7 +105,7 @@ interface SampleModule {
 
 ```java
 @Module
-interface Production {
+public interface Production {
     @Named("DatabaseUrl")
     default String databaseUrl() {
         return "jdbc:mysql://prod-db:3306/db";
@@ -113,7 +113,7 @@ interface Production {
 }
 
 @Module
-interface Local extends Production {
+public interface Local extends Production {
     @Override
     @Named("DatabaseUrl")
     default String databaseUrl() {
