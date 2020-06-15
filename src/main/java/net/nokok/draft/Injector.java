@@ -38,7 +38,7 @@ public class Injector {
 
     public static Injector fromModule(Class<?> module) {
         if (!module.isAnnotationPresent(Module.class)) {
-            throw new IllegalArgumentException("@Module annotation not found");
+            throw new IllegalArgumentException(String.format("@Module annotation not found : %s", module));
         }
         Map<Key, Dependencies> dependenciesMap = new HashMap<>();
         Map<Key, Object> singletonInstances = new HashMap<>();
@@ -49,7 +49,7 @@ public class Injector {
             Key key = binding.getKey();
             Type bindTo = binding.getBindTo();
             if (dependenciesMap.containsKey(key)) {
-                throw new IllegalStateException("Duplicate Entry :" + binding);
+                throw new IllegalStateException(String.format("Duplicate Entry : %s", binding));
             }
             if (binding.hasValue()) {
                 singletonInstances.put(key, binding.getValue().orElse(null));
@@ -76,7 +76,6 @@ public class Injector {
     @SuppressWarnings("unchecked")
     public <T> T getInstance(List<? extends Annotation> annotations, Type type) {
         Key key = Key.of(annotations, type);
-        logger.info("Resolving... " + key);
         if (key.isProviderTypeKey()) {
             Provider<?> providerInstance = getProviderInstance(key);
             return (T) providerInstance;
@@ -164,6 +163,7 @@ public class Injector {
                 continue;
             }
             if (Modifier.isFinal(field.getModifiers())) {
+                logger.warning(String.format("Field injection has been skipped. final field is not supported. : %s.%s", field.getDeclaringClass().getCanonicalName(), field.getName()));
                 continue;
             }
             Annotation[] annotations = field.getAnnotations();
