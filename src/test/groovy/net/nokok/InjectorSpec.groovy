@@ -5,11 +5,12 @@ import net.nokok.draft.Injector
 import net.nokok.draft.Key
 import net.nokok.draft.LazyDraftProvider
 import net.nokok.draft.ParameterizedTypeImpl
-
+import net.nokok.testdata.FinalField
 import net.nokok.testdata.JSRModule
 import net.nokok.testdata.Local
 import net.nokok.testdata.OneConstructorWithProvider
 import net.nokok.testdata.OneConstructorWithProviderModule
+import net.nokok.testdata.Production
 import net.nokok.testdata.Repository
 import net.nokok.testdata.Service
 import net.nokok.testdata.ServiceImpl
@@ -104,6 +105,14 @@ class InjectorSpec extends Specification {
 
         expect:
         repo.url.contains("localhost")
+    }
+
+    def "testFinalField"() {
+        def injector = Injector.fromModule(Production)
+        def f = injector.getInstance(FinalField)
+
+        expect:
+        f.injected == null
     }
 
 }
