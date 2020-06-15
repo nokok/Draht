@@ -115,4 +115,16 @@ class InjectorSpec extends Specification {
         f.injected == null
     }
 
+    def "testNoModuleAnnotation"() {
+        when:
+        Injector.fromModule(List)
+
+        then:
+        def ex = thrown(IllegalArgumentException)
+
+        expect:
+        ex.message == "@Module annotation not found : interface java.util.List"
+
+    }
+
 }
