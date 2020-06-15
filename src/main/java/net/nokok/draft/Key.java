@@ -76,4 +76,9 @@ public interface Key {
         List<Annotation> annotations = Arrays.stream(((Class<?>) p.getRawType()).getDeclaredAnnotations()).filter(a -> a.annotationType().isAnnotationPresent(Qualifier.class)).collect(Collectors.toList());
         return of(annotations, p);
     }
+
+    public static Key of(String name, Type type) {
+        List<Annotation> annotations = List.of(AtNamed.from(name));
+        return of(annotations, type);
+    }
 }
