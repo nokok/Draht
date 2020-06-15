@@ -10,7 +10,7 @@ Implementation of JSR-330(Dependency Injection standard for Java)
 ```
 git clone git@github.com:nokok/Draft.git
 cd Draft
-./gradlew build
+./gradlew build # Requirements: JDK 11 or above
 ```
 
 ## Features
