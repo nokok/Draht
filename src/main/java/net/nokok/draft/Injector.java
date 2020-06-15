@@ -10,6 +10,7 @@ import javax.inject.Singleton;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -160,6 +161,9 @@ public class Injector {
         Field[] fields = clazz.getDeclaredFields();
         for (Field field : fields) {
             if (field.getDeclaredAnnotation(Inject.class) == null) {
+                continue;
+            }
+            if (Modifier.isFinal(field.getModifiers())) {
                 continue;
             }
             Annotation[] annotations = field.getAnnotations();
