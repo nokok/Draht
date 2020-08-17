@@ -9,6 +9,7 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -28,6 +29,10 @@ public class ConstructorDependencyAnalyzer implements DependencyAnalyzer {
             rawType = (Class<?>) type;
         } else {
             rawType = (Class<?>) ((ParameterizedType) type).getRawType();
+        }
+
+        if (rawType.isInterface()) {
+            return new Dependencies(rawType, Collections.emptyList());
         }
 
         ConstructorPicker picker = new ConstructorPicker(rawType);

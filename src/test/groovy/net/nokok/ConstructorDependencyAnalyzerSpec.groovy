@@ -5,6 +5,7 @@ import net.nokok.draft.Key
 import net.nokok.draft.ParameterizedTypeImpl
 import net.nokok.draft.analyzer.ConstructorDependencyAnalyzer
 import net.nokok.testdata.Dependency
+import net.nokok.testdata.EmptyInterface
 import net.nokok.testdata.OneConstructor
 import net.nokok.testdata.OneConstructorWithDependency
 import net.nokok.testdata.OneConstructorWithInject
@@ -46,5 +47,15 @@ class ConstructorDependencyAnalyzerSpec extends Specification {
 
         expect:
         dependencies.dependencyKeys == [Key.of(new ParameterizedTypeImpl(List, [String] as Type[]))]
+    }
+
+    def "testInterface"() {
+        def analyzer = new ConstructorDependencyAnalyzer(EmptyInterface)
+
+        when:
+        analyzer.runAnalyze()
+
+        then:
+        notThrown(IllegalArgumentException)
     }
 }
